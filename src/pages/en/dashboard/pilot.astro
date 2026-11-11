@@ -1,0 +1,34 @@
+---
+// Verifies shared sign-in and this app's own D1 database on its approved Hasanat domain.
+import { requireAuth } from "@/lib/auth";
+import { execute, getDB, queryOne } from "@/lib/db";
+
+const user = Astro.locals.user;
+const redirect = requireAuth(user, Astro.url.href);
+if (redirect || !user) return redirect;
+
+const db = getDB(Astro.locals);
+if (Astro.request.method === "POST") {
+  await execute(db, "INSERT INTO pilot_checks (user_id) VALUES (?)", user.id);
+  return Astro.redirect("/en/dashboard/pilot", 303);
+}
+const mine = await queryOne<{ n: number }>(db, "SELECT COUNT(*) AS n FROM pilot_checks WHERE user_id = ?", user.id);
+const total = await queryOne<{ n: number }>(db, "SELECT COUNT(*) AS n FROM pilot_checks");
+---
+
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Managed hosting pilot</title>
+  </head>
+  <body>
+    <main>
+      <h1>Managed hosting pilot</h1>
+      <p>Signed in as {user.name}.</p>
+      <p>Your saved checks: <strong>{mine?.n ?? 0}</strong>. All checks: <strong>{total?.n ?? 0}</strong>.</p>
+      <form method="post"><button type="submit">Save a check</button></form>
+    </main>
+  </body>
+</html>
